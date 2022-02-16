@@ -4,8 +4,6 @@
 
 int
 main(int argc, char *argv[]) {
-  hello();
-
   printf("[user] hello\n");
   intr_off(); // crash
   printf("[user] interrupt off\n");
