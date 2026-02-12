@@ -1,3 +1,6 @@
+// signal.h must be included before struct proc for NSIG.
+#include "signal.h"
+
 // Saved registers for kernel context switches.
 struct context {
   uint64 ra;
@@ -104,4 +107,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+
+  uint64 sig_pending;          // pending signals bitmask
+  uint64 sig_handlers[NSIG];   // user handlers (SIG_DFL/SIG_IGN/sigfn)
+  int in_signal;               // currently executing a signal handler
+  struct trapframe sig_tf;     // saved trapframe for sigreturn
 };

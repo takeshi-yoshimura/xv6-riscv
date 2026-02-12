@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "signal.h"
 
 uint64
 sys_exit(void)
@@ -95,6 +96,33 @@ sys_kill(void)
   return kkill(pid);
 }
 
+uint64
+sys_signal(void)
+{
+  int signum;
+  uint64 handler;
+
+  argint(0, &signum);
+  argaddr(1, &handler);
+  return ksignal(signum, handler);
+}
+
+uint64
+sys_sigsend(void)
+{
+  int pid, signum;
+
+  argint(0, &pid);
+  argint(1, &signum);
+  return ksigsend(pid, signum);
+}
+
+uint64
+sys_sigreturn(void)
+{
+  return ksigreturn();
+}
+
 // return how many clock tick interrupts have occurred
 // since start.
 uint64
@@ -106,4 +134,18 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_hello(void)
+{
+  printf("hello from xv6\n");
+  return 0;
+}
+
+uint64
+sys_crash(void)
+{
+  panic("sys_crash");
+  return 0;
 }

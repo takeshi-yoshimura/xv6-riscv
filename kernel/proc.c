@@ -17,6 +17,8 @@ struct spinlock pid_lock;
 
 extern void forkret(void);
 static void freeproc(struct proc *p);
+static int valid_signal(int signum);
+static void init_sig_handlers(struct proc *p);
 
 extern char trampoline[]; // trampoline.S
 
@@ -124,6 +126,10 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->sig_pending = 0;
+  p->in_signal = 0;
+  init_sig_handlers(p);
+  memset(&p->sig_tf, 0, sizeof(p->sig_tf));
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -168,7 +174,18 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->sig_pending = 0;
+  p->in_signal = 0;
+  init_sig_handlers(p);
+  memset(&p->sig_tf, 0, sizeof(p->sig_tf));
   p->state = UNUSED;
+}
+
+static void
+init_sig_handlers(struct proc *p)
+{
+  for(int i = 0; i < NSIG; i++)
+    p->sig_handlers[i] = SIG_DFL;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -281,6 +298,10 @@ kfork(void)
 
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
+  np->sig_pending = 0;
+  np->in_signal = 0;
+  memmove(np->sig_handlers, p->sig_handlers, sizeof(p->sig_handlers));
+  memset(&np->sig_tf, 0, sizeof(np->sig_tf));
 
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
@@ -592,22 +613,110 @@ wakeup(void *chan)
 int
 kkill(int pid)
 {
+  return ksigsend(pid, SIGKILL);
+}
+
+static int
+valid_signal(int signum)
+{
+  return signum >= 0 && signum < NSIG && signum < 64;
+}
+
+int
+ksigsend(int pid, int signum)
+{
   struct proc *p;
+
+  if(!valid_signal(signum))
+    return -1;
 
   for(p = proc; p < &proc[NPROC]; p++){
     acquire(&p->lock);
-    if(p->pid == pid){
-      p->killed = 1;
-      if(p->state == SLEEPING){
-        // Wake process from sleep().
-        p->state = RUNNABLE;
+    if(p->pid == pid && p->state != UNUSED){
+      if(signum == SIGKILL){
+        p->killed = 1;
+      } else {
+        p->sig_pending |= (1ULL << signum);
       }
+      if(p->state == SLEEPING)
+        p->state = RUNNABLE;
       release(&p->lock);
       return 0;
     }
     release(&p->lock);
   }
   return -1;
+}
+
+int
+ksignal(int signum, uint64 handler)
+{
+  struct proc *p = myproc();
+
+  if(!valid_signal(signum))
+    return -1;
+  if(signum == SIGKILL)
+    return -1;
+
+  acquire(&p->lock);
+  p->sig_handlers[signum] = handler;
+  release(&p->lock);
+  return 0;
+}
+
+uint64
+ksigreturn(void)
+{
+  struct proc *p = myproc();
+  uint64 a0;
+
+  acquire(&p->lock);
+  if(p->in_signal == 0){
+    release(&p->lock);
+    return -1;
+  }
+  *(p->trapframe) = p->sig_tf;
+  p->in_signal = 0;
+  a0 = p->trapframe->a0;
+  release(&p->lock);
+  return a0;
+}
+
+void
+sigcheck(struct proc *p)
+{
+  int signum;
+  uint64 handler;
+
+  acquire(&p->lock);
+  if(p->in_signal){
+    release(&p->lock);
+    return;
+  }
+
+  for(signum = 0; signum < NSIG && signum < 64; signum++){
+    if((p->sig_pending & (1ULL << signum)) == 0)
+      continue;
+
+    p->sig_pending &= ~(1ULL << signum);
+    handler = p->sig_handlers[signum];
+
+    if(handler == SIG_IGN)
+      continue;
+
+    if(signum == SIGKILL || handler == SIG_DFL){
+      p->killed = 1;
+      break;
+    }
+
+    p->sig_tf = *(p->trapframe);
+    p->in_signal = 1;
+    p->trapframe->epc = handler;
+    p->trapframe->a0 = signum;
+    break;
+  }
+
+  release(&p->lock);
 }
 
 void

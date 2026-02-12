@@ -130,6 +130,11 @@ UPROGS=\
 	$U/_echo\
 	$U/_forktest\
 	$U/_grep\
+	$U/_getpidlat\
+	$U/_sigtest\
+	$U/_toctou\
+	$U/_crash\
+	$U/_hello\
 	$U/_init\
 	$U/_kill\
 	$U/_ln\

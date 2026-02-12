@@ -42,3 +42,8 @@ entry("getpid");
 entry("sbrk");
 entry("pause");
 entry("uptime");
+entry("hello");
+entry("crash");
+entry("signal");
+entry("sigsend");
+entry("sigreturn");
