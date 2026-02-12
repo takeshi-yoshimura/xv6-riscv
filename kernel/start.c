@@ -14,6 +14,15 @@ __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
 void
 start()
 {
+#ifdef XV6_BOARD_VISIONFIVE2
+  // On real hardware with OpenSBI/U-Boot, xv6 is entered in S-mode.
+  // M-mode CSR writes would trap, so do only S-mode setup here.
+  w_satp(0);
+  w_sie(r_sie() | SIE_SEIE | SIE_STIE);
+  timerinit();
+  w_tp(r_mhartid());
+  main();
+#else
   // set M Previous Privilege mode to Supervisor, for mret.
   unsigned long x = r_mstatus();
   x &= ~MSTATUS_MPP_MASK;
@@ -46,12 +55,18 @@ start()
 
   // switch to supervisor mode and jump to main().
   asm volatile("mret");
+#endif
 }
 
 // ask each hart to generate timer interrupts.
 void
 timerinit()
 {
+#ifdef XV6_BOARD_VISIONFIVE2
+  // OpenSBI is expected to have configured timer access for S-mode.
+  w_sie(r_sie() | SIE_STIE);
+  w_stimecmp(r_time() + 1000000);
+#else
   // enable supervisor-mode timer interrupts.
   w_mie(r_mie() | MIE_STIE);
   
@@ -63,4 +78,5 @@ timerinit()
   
   // ask for the very first timer interrupt.
   w_stimecmp(r_time() + 1000000);
+#endif
 }
