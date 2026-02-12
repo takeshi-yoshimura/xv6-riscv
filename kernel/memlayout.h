@@ -17,6 +17,17 @@
 // end -- start of kernel page allocation area
 // PHYSTOP -- end RAM used by the kernel
 
+#ifdef XV6_BOARD_VISIONFIVE2
+// Board split for real hardware bring-up. Keep these values aligned with
+// current xv6 defaults first; then replace with VisionFive2 Lite-specific
+// addresses/IRQs during board enablement.
+#define UART0 0x10000000L
+// JH7110 UART0 uses PLIC interrupt ID 32.
+#define UART0_IRQ 32
+#define VIRTIO0 0x10001000
+#define VIRTIO0_IRQ 1
+#define PLIC 0x0c000000L
+#else
 // qemu puts UART registers here in physical memory.
 #define UART0 0x10000000L
 #define UART0_IRQ 10
@@ -27,6 +38,8 @@
 
 // qemu puts platform-level interrupt controller (PLIC) here.
 #define PLIC 0x0c000000L
+#endif
+
 #define PLIC_PRIORITY (PLIC + 0x0)
 #define PLIC_PENDING (PLIC + 0x1000)
 #define PLIC_SENABLE(hart) (PLIC + 0x2080 + (hart)*0x100)
