@@ -7,6 +7,15 @@
 void main();
 void timerinit();
 
+#ifdef XV6_BOARD_VISIONFIVE2
+static void
+early_puts(const char *s)
+{
+  while(*s)
+    uartputc_sync(*s++);
+}
+#endif
+
 // entry.S needs one stack per CPU.
 __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
 
@@ -17,10 +26,13 @@ start()
 #ifdef XV6_BOARD_VISIONFIVE2
   // On real hardware with OpenSBI/U-Boot, xv6 is entered in S-mode.
   // M-mode CSR writes would trap, so do only S-mode setup here.
+  uartinit();
+  early_puts("\n[early] s-mode start\n");
   w_satp(0);
   w_sie(r_sie() | SIE_SEIE | SIE_STIE);
   timerinit();
   w_tp(r_mhartid());
+  early_puts("[early] jump main\n");
   main();
 #else
   // set M Previous Privilege mode to Supervisor, for mret.

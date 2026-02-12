@@ -14,6 +14,9 @@ main()
   if(cpuid() == 0){
     consoleinit();
     printfinit();
+#ifdef XV6_BOARD_VISIONFIVE2
+    printf("[dbg] console ready\n");
+#endif
     printf("\n");
     printf("xv6 kernel is booting\n");
     printf("\n");
@@ -25,10 +28,16 @@ main()
     trapinithart();  // install kernel trap vector
     plicinit();      // set up interrupt controller
     plicinithart();  // ask PLIC for device interrupts
+#ifdef XV6_BOARD_VISIONFIVE2
+    printf("[dbg] plic ready\n");
+#endif
     binit();         // buffer cache
     iinit();         // inode table
     fileinit();      // file table
     disk_init();
+#ifdef XV6_BOARD_VISIONFIVE2
+    printf("[dbg] disk backend ready\n");
+#endif
     userinit();      // first user process
     __sync_synchronize();
     started = 1;

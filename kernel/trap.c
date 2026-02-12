@@ -9,6 +9,10 @@
 
 struct spinlock tickslock;
 uint ticks;
+#ifdef XV6_BOARD_VISIONFIVE2
+static int first_tick_printed = 0;
+static int first_ext_irq_printed = 0;
+#endif
 
 extern char trampoline[], uservec[];
 
@@ -168,6 +172,12 @@ clockintr()
   if(cpuid() == 0){
     acquire(&tickslock);
     ticks++;
+#ifdef XV6_BOARD_VISIONFIVE2
+    if(first_tick_printed == 0){
+      first_tick_printed = 1;
+      printf("[dbg] first timer tick\n");
+    }
+#endif
     wakeup(&ticks);
     release(&tickslock);
   }
@@ -193,6 +203,12 @@ devintr()
 
     // irq indicates which device interrupted.
     int irq = plic_claim();
+#ifdef XV6_BOARD_VISIONFIVE2
+    if(first_ext_irq_printed == 0){
+      first_ext_irq_printed = 1;
+      printf("[dbg] first external irq=%d\n", irq);
+    }
+#endif
 
     if(irq == UART0_IRQ){
       uartintr();
