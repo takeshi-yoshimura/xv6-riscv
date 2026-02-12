@@ -13,17 +13,26 @@ plicinit(void)
 {
   // set desired IRQ priorities non-zero (otherwise disabled).
   *(uint32*)(PLIC + UART0_IRQ*4) = 1;
+#ifndef XV6_BOARD_VISIONFIVE2
   *(uint32*)(PLIC + VIRTIO0_IRQ*4) = 1;
+#endif
 }
 
 void
 plicinithart(void)
 {
   int hart = cpuid();
-  
+
+#ifdef XV6_BOARD_VISIONFIVE2
+  // Set enable bit for this hart's S-mode uart interrupt.
+  // JH7110 uses IRQ IDs >= 32, which live in the next enable register word.
+  volatile uint32 *senable = (uint32*)PLIC_SENABLE(hart);
+  senable[UART0_IRQ / 32] |= (1U << (UART0_IRQ % 32));
+#else
   // set enable bits for this hart's S-mode
   // for the uart and virtio disk.
   *(uint32*)PLIC_SENABLE(hart) = (1 << UART0_IRQ) | (1 << VIRTIO0_IRQ);
+#endif
 
   // set this hart's S-mode priority threshold to 0.
   *(uint32*)PLIC_SPRIORITY(hart) = 0;
