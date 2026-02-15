@@ -18,12 +18,25 @@ early_puts(const char *s)
 
 // entry.S needs one stack per CPU.
 __attribute__ ((aligned (16))) char stack0[4096 * NCPU];
+#ifdef XV6_BOARD_VISIONFIVE2
+static volatile int nextcpuid = 0;
+#endif
 
 // entry.S jumps here in machine mode on stack0.
 void
 start()
 {
 #ifdef XV6_BOARD_VISIONFIVE2
+  uint64 raw_hartid = r_tp();
+  int id = __sync_fetch_and_add(&nextcpuid, 1);
+  if(id >= NCPU){
+    early_puts("[early] cpu id overflow\n");
+    for(;;)
+      ;
+  }
+  cpu_set_hartid(id, raw_hartid);
+  w_tp(id);
+
   // On real hardware with OpenSBI/U-Boot, xv6 is entered in S-mode.
   // M-mode CSR writes would trap, so do only S-mode setup here.
   uartinit();
@@ -31,7 +44,6 @@ start()
   w_satp(0);
   w_sie(r_sie() | SIE_SEIE | SIE_STIE);
   timerinit();
-  w_tp(r_mhartid());
   early_puts("[early] jump main\n");
   main();
 #else
@@ -77,7 +89,7 @@ timerinit()
 #ifdef XV6_BOARD_VISIONFIVE2
   // OpenSBI is expected to have configured timer access for S-mode.
   w_sie(r_sie() | SIE_STIE);
-  w_stimecmp(r_time() + 1000000);
+  sbi_set_timer(r_time() + 1000000);
 #else
   // enable supervisor-mode timer interrupts.
   w_mie(r_mie() | MIE_STIE);

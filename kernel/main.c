@@ -11,38 +11,55 @@ volatile static int started = 0;
 void
 main()
 {
+#ifdef XV6_BOARD_VISIONFIVE2
+  // On VF2/OpenSBI, boot hart is not guaranteed to be hart 0.
+  // Let the first hart entering main() run global initialization.
+  if(__sync_bool_compare_and_swap(&started, 0, -1)){
+#else
   if(cpuid() == 0){
+#endif
     consoleinit();
     printfinit();
-#ifdef XV6_BOARD_VISIONFIVE2
     printf("[dbg] console ready\n");
-#endif
     printf("\n");
     printf("xv6 kernel is booting\n");
     printf("\n");
+    printf("[dbg] kinit\n");
     kinit();         // physical page allocator
+    printf("[dbg] kvminit\n");
     kvminit();       // create kernel page table
+    printf("[dbg] kvminithart\n");
     kvminithart();   // turn on paging
+    printf("[dbg] procinit\n");
     procinit();      // process table
+    printf("[dbg] trapinit\n");
     trapinit();      // trap vectors
+    printf("[dbg] trapinithart\n");
     trapinithart();  // install kernel trap vector
+    printf("[dbg] plicinit\n");
     plicinit();      // set up interrupt controller
+    printf("[dbg] plicinithart\n");
     plicinithart();  // ask PLIC for device interrupts
-#ifdef XV6_BOARD_VISIONFIVE2
     printf("[dbg] plic ready\n");
-#endif
+    printf("[dbg] binit\n");
     binit();         // buffer cache
+    printf("[dbg] iinit\n");
     iinit();         // inode table
+    printf("[dbg] fileinit\n");
     fileinit();      // file table
+    printf("[dbg] disk_init\n");
     disk_init();
-#ifdef XV6_BOARD_VISIONFIVE2
     printf("[dbg] disk backend ready\n");
-#endif
+    printf("[dbg] userinit\n");
     userinit();      // first user process
     __sync_synchronize();
     started = 1;
   } else {
+#ifdef XV6_BOARD_VISIONFIVE2
+    while(started != 1)
+#else
     while(started == 0)
+#endif
       ;
     __sync_synchronize();
     printf("hart %d starting\n", cpuid());

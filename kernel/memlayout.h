@@ -22,7 +22,7 @@
 // current xv6 defaults first; then replace with VisionFive2 Lite-specific
 // addresses/IRQs during board enablement.
 #define UART0 0x10000000L
-// JH7110 UART0 uses PLIC interrupt ID 32.
+// VF2 device tree reports serial@10000000 interrupts = <0x20>.
 #define UART0_IRQ 32
 #define VIRTIO0 0x10001000
 #define VIRTIO0_IRQ 1

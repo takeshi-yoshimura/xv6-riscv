@@ -73,13 +73,25 @@ kvminit(void)
 void
 kvminithart()
 {
+#ifdef XV6_BOARD_VISIONFIVE2
+  uartputc_sync('A');
+#endif
   // wait for any previous writes to the page table memory to finish.
   sfence_vma();
 
+#ifdef XV6_BOARD_VISIONFIVE2
+  uartputc_sync('B');
+#endif
   w_satp(MAKE_SATP(kernel_pagetable));
 
+#ifdef XV6_BOARD_VISIONFIVE2
+  uartputc_sync('C');
+#endif
   // flush stale entries from the TLB.
   sfence_vma();
+#ifdef XV6_BOARD_VISIONFIVE2
+  uartputc_sync('D');
+#endif
 }
 
 // Return the address of the PTE in page table pagetable
@@ -147,6 +159,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 {
   uint64 a, last;
   pte_t *pte;
+  int ad;
 
   if((va % PGSIZE) != 0)
     panic("mappages: va not aligned");
@@ -156,6 +169,12 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
 
   if(size == 0)
     panic("mappages: size");
+
+  // Some real RISC-V cores don't auto-manage A/D and require software
+  // to set them in leaf PTEs up front.
+  ad = PTE_A;
+  if(perm & PTE_W)
+    ad |= PTE_D;
   
   a = va;
   last = va + size - PGSIZE;
@@ -164,7 +183,7 @@ mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa, int perm)
       return -1;
     if(*pte & PTE_V)
       panic("mappages: remap");
-    *pte = PA2PTE(pa) | perm | PTE_V;
+    *pte = PA2PTE(pa) | perm | ad | PTE_V;
     if(a == last)
       break;
     a += PGSIZE;

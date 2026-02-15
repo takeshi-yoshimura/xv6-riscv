@@ -99,7 +99,16 @@ consoleread(int user_dst, uint64 dst, int n)
         release(&cons.lock);
         return -1;
       }
+#ifdef XV6_BOARD_VISIONFIVE2
+      // Fallback for bring-up: poll RX if UART IRQ routing is incomplete.
+      release(&cons.lock);
+      c = uartgetc();
+      if(c != -1)
+        consoleintr(c);
+      acquire(&cons.lock);
+#else
       sleep(&cons.r, &cons.lock);
+#endif
     }
 
     c = cons.buf[cons.r++ % INPUT_BUF_SIZE];

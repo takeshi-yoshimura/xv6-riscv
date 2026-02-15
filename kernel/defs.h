@@ -79,6 +79,8 @@ void            printfinit(void);
 
 // proc.c
 int             cpuid(void);
+int             hartid(void);
+void            cpu_set_hartid(int cpuid, int hartid);
 void            kexit(int);
 int             kfork(void);
 int             growproc(int);
@@ -149,6 +151,7 @@ void            uartintr(void);
 void            uartwrite(char [], int);
 void            uartputc_sync(int);
 int             uartgetc(void);
+int             uart_irq_pending(void);
 
 // vm.c
 void            kvminit(void);
@@ -175,6 +178,7 @@ void            plicinit(void);
 void            plicinithart(void);
 int             plic_claim(void);
 void            plic_complete(int);
+void            plic_mask_irq(int);
 
 // virtio_disk.c
 void            virtio_disk_init(void);

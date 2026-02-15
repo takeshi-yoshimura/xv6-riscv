@@ -7,6 +7,7 @@
 #include "defs.h"
 
 struct cpu cpus[NCPU];
+static int cpu_hartid_map[NCPU];
 
 struct proc proc[NPROC];
 
@@ -66,6 +67,20 @@ cpuid()
 {
   int id = r_tp();
   return id;
+}
+
+int
+hartid()
+{
+  return cpu_hartid_map[cpuid()];
+}
+
+void
+cpu_set_hartid(int id, int hid)
+{
+  if(id < 0 || id >= NCPU)
+    panic("cpu_set_hartid");
+  cpu_hartid_map[id] = hid;
 }
 
 // Return this CPU's cpu struct.

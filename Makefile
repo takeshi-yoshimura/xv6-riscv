@@ -96,7 +96,7 @@ $K/kernel: $(OBJS) $K/kernel.ld
 	$(OBJDUMP) -t $K/kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > $K/kernel.sym
 
 $K/%.o: $K/%.S
-	$(CC) -march=rv64gc -g -c -o $@ $<
+	$(CC) $(CFLAGS) -c -o $@ $<
 
 $K/ramdisk_img.o: fs.img
 	$(OBJCOPY) -I binary -O elf64-littleriscv -B riscv $< $@

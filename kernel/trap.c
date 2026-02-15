@@ -12,6 +12,7 @@ uint ticks;
 #ifdef XV6_BOARD_VISIONFIVE2
 static int first_tick_printed = 0;
 static int first_ext_irq_printed = 0;
+static int uart_irq_id = -1;
 #endif
 
 extern char trampoline[], uservec[];
@@ -185,7 +186,11 @@ clockintr()
   // ask for the next timer interrupt. this also clears
   // the interrupt request. 1000000 is about a tenth
   // of a second.
+#ifdef XV6_BOARD_VISIONFIVE2
+  sbi_set_timer(r_time() + 1000000);
+#else
   w_stimecmp(r_time() + 1000000);
+#endif
 }
 
 // check if it's an external interrupt or software interrupt,
@@ -208,8 +213,24 @@ devintr()
       first_ext_irq_printed = 1;
       printf("[dbg] first external irq=%d\n", irq);
     }
-#endif
-
+    if(irq){
+      if(uart_irq_id >= 0){
+        if(irq == uart_irq_id){
+          uartintr();
+        } else {
+          plic_mask_irq(irq);
+        }
+      } else {
+        if(uart_irq_pending()){
+          uart_irq_id = irq;
+          printf("[dbg] detected uart irq=%d\n", irq);
+          uartintr();
+        } else {
+          plic_mask_irq(irq);
+        }
+      }
+    }
+#else
     if(irq == UART0_IRQ){
       uartintr();
     }
@@ -221,6 +242,7 @@ devintr()
     else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);
     }
+#endif
 
     // the PLIC allows each device to raise at most one
     // interrupt at a time; tell the PLIC the device is

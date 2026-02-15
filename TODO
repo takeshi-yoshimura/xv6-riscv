@@ -1,0 +1,40 @@
+# VisionFive2 UART RX Interrupt Stabilization TODO
+
+1. Lock IRQ source from DT and keep constants consistent.
+- Keep `UART0_IRQ` aligned with device tree (`serial@10000000 interrupts = <0x20>` => 32).
+- Avoid temporary hardcoded alternates once DT-confirmed.
+
+2. Stabilize PLIC S-context mapping.
+- Remove broad context probing once verified.
+- Use one deterministic S-mode context formula that matches VF2/OpenSBI behavior.
+- Ensure `claim` and `complete` use the same context.
+
+3. Restrict enabled IRQ lines during RX bring-up.
+- Enable only UART IRQ line in PLIC for test runs.
+- Keep unrelated IRQ lines masked to avoid interrupt storms/noise.
+
+4. Add short-lived IRQ diagnostics (keep for now).
+- Log claimed external IRQ IDs and first few UART interrupt causes.
+- Log UART IIR/LSR values when external IRQ is claimed.
+
+5. Validate UART IRQ attribution before handling.
+- In external IRQ path, treat as UART only when UART indicates pending RX-related interrupt.
+- Otherwise complete and mask that IRQ source.
+
+6. Keep TX polling until RX interrupt path is proven stable.
+- RX should become interrupt-driven first.
+- Re-enable TX interrupt-driven path only after RX reliability is confirmed.
+
+7. Run RX stability tests on board.
+- Interactive shell input (`sh`, `cat`, backspace, Ctrl-D).
+- Sustained typing and repeated command entry.
+- Confirm no stalls/lost characters over time.
+
+8. Remove `consoleread()` RX polling fallback.
+- Delete VF2 polling fallback only after steps 1-7 pass.
+- Re-test full shell interactivity after removal.
+
+9. Final cleanup for test branch.
+- Keep useful debug logs requested by user.
+- Remove temporary experimental branches no longer used.
+- Keep comments concise and board-specific where needed.

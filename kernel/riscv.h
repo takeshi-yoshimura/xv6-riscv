@@ -282,6 +282,17 @@ r_time()
   return x;
 }
 
+// SBI v0.2+ TIME extension: program next timer interrupt from S-mode.
+static inline void
+sbi_set_timer(uint64 stime_value)
+{
+  register uint64 a0 asm("a0") = stime_value;
+  register uint64 a1 asm("a1") = 0;
+  register uint64 a6 asm("a6") = 0;
+  register uint64 a7 asm("a7") = 0x54494D45;
+  asm volatile("ecall" : "+r"(a0), "+r"(a1) : "r"(a6), "r"(a7) : "memory");
+}
+
 // enable device interrupts
 static inline void
 intr_on()
@@ -360,6 +371,9 @@ typedef uint64 *pagetable_t; // 512 PTEs
 #define PTE_W (1L << 2)
 #define PTE_X (1L << 3)
 #define PTE_U (1L << 4) // user can access
+#define PTE_G (1L << 5) // global mapping
+#define PTE_A (1L << 6) // accessed
+#define PTE_D (1L << 7) // dirty
 
 // shift a physical address to the right place for a PTE.
 #define PA2PTE(pa) ((((uint64)pa) >> 12) << 10)

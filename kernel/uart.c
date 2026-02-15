@@ -13,7 +13,12 @@
 // the UART control registers are memory-mapped
 // at address UART0. this macro returns the
 // address of one of the registers.
-#define Reg(reg) ((volatile unsigned char *)(UART0 + (reg)))
+#ifdef XV6_BOARD_VISIONFIVE2
+#define UART_REG_SHIFT 2
+#else
+#define UART_REG_SHIFT 0
+#endif
+#define Reg(reg) ((volatile unsigned char *)(UART0 + ((reg) << UART_REG_SHIFT)))
 
 #define ReadReg(reg) (*(Reg(reg)))
 #define WriteReg(reg, v) (*(Reg(reg)) = (v))
@@ -33,6 +38,8 @@
 #define LCR 3                 // line control register
 #define LCR_EIGHT_BITS (3<<0)
 #define LCR_BAUD_LATCH (1<<7) // special mode to set baud rate
+#define MCR 4                 // modem control register
+#define MCR_OUT2 (1<<3)       // enable IRQ output on many 16550 variants
 #define LSR 5                 // line status register
 #define LSR_RX_READY (1<<0)   // input is waiting to be read from RHR
 #define LSR_TX_IDLE (1<<5)    // THR can accept another character to send
@@ -67,8 +74,16 @@ uartinit(void)
   // reset and enable FIFOs.
   WriteReg(FCR, FCR_FIFO_ENABLE | FCR_FIFO_CLEAR);
 
-  // enable transmit and receive interrupts.
+  // Some 16550-compatible UARTs gate interrupt output with OUT2.
+  WriteReg(MCR, MCR_OUT2);
+
+  // enable UART interrupts.
+#ifdef XV6_BOARD_VISIONFIVE2
+  // TX is polled during bring-up; keep only RX IRQ enabled.
+  WriteReg(IER, IER_RX_ENABLE);
+#else
   WriteReg(IER, IER_TX_ENABLE | IER_RX_ENABLE);
+#endif
 
   initlock(&tx_lock, "uart");
 }
@@ -79,6 +94,12 @@ uartinit(void)
 void
 uartwrite(char buf[], int n)
 {
+#ifdef XV6_BOARD_VISIONFIVE2
+  // Keep TX robust during bring-up; RX path remains interrupt-driven.
+  for(int i = 0; i < n; i++)
+    uartputc_sync(buf[i]);
+  return;
+#endif
   acquire(&tx_lock);
 
   int i = 0;
@@ -113,6 +134,15 @@ uartputc_sync(int c)
       ;
   }
 
+#ifdef XV6_BOARD_VISIONFIVE2
+  // Serial terminals on VF2 typically expect CRLF for proper line wrap.
+  if(c == '\n'){
+    while((ReadReg(LSR) & LSR_TX_IDLE) == 0)
+      ;
+    WriteReg(THR, '\r');
+  }
+#endif
+
   // wait for UART to set Transmit Holding Empty in LSR.
   while((ReadReg(LSR) & LSR_TX_IDLE) == 0)
     ;
@@ -133,6 +163,13 @@ uartgetc(void)
   } else {
     return -1;
   }
+}
+
+int
+uart_irq_pending(void)
+{
+  // 16550 IIR bit0 == 1 means no interrupt pending.
+  return (ReadReg(ISR) & 0x1) == 0;
 }
 
 // handle a uart interrupt, raised because input has
